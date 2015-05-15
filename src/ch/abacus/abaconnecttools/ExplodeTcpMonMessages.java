@@ -571,7 +571,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
         m_txfTcpMonFileName = getTextField();
         m_txfFilenamePrefix = getTextField();
 
-        int chkbxWidth = 300;
+        int chkbxWidth = 380;  // Should be about half the size of the frame window defined with setSize(..) in the main method.
         int chkbxHeight = 20;
         m_chkReFormatSoapMessages = new JCheckBox();
         m_chkReFormatSoapMessages.setMinimumSize(new Dimension(chkbxWidth,chkbxHeight));
@@ -670,12 +670,9 @@ public class ExplodeTcpMonMessages  extends JFrame {
         pnlLine.setMaximumSize(new Dimension(9999,20));
         pnlLine.setPreferredSize(new Dimension(600,20));
 
-        JButton btn = new JButton();
-        btn.setMinimumSize(new Dimension(150,20));
-        btn.setMaximumSize(new Dimension(150,20));
-        btn.setPreferredSize(new Dimension(150,20));
-        btn.setText(BUTTON_TEXT_EXPLODE_MESSAGES);
-        btn.addActionListener(new ActionListener() {
+        JButton btnExplodeMessages = new JButton();
+        btnExplodeMessages.setText(BUTTON_TEXT_EXPLODE_MESSAGES);
+        btnExplodeMessages.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 action_ExplodeMessages();
             }
@@ -686,7 +683,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
         pnlLine.add(Box.createHorizontalStrut(5));
         pnlLine.add(btnDeleteExistingXmlFiles);
         pnlLine.add(Box.createHorizontalGlue());
-        pnlLine.add(btn);
+        pnlLine.add(btnExplodeMessages);
         pnlMain.add(pnlLine);
 
         pnlMain.add(Box.createVerticalStrut(3));
@@ -901,10 +898,11 @@ public class ExplodeTcpMonMessages  extends JFrame {
     }
 
     private JLabel getLabel(String caption) {
+        int lblWidth = 140;
         JLabel lbl = new JLabel();
-        lbl.setMinimumSize(new Dimension(120,20));
-        lbl.setMaximumSize(new Dimension(120,20));
-        lbl.setPreferredSize(new Dimension(120,20));
+        lbl.setMinimumSize(new Dimension(lblWidth,20));
+        lbl.setMaximumSize(new Dimension(lblWidth,20));
+        lbl.setPreferredSize(new Dimension(lblWidth,20));
         lbl.setText(caption);
         return lbl;
     }
@@ -919,9 +917,9 @@ public class ExplodeTcpMonMessages  extends JFrame {
 
     private JButton getButton() {
         JButton btn = new JButton();
-        btn.setMinimumSize(new Dimension(20,20));
-        btn.setMaximumSize(new Dimension(20,20));
-        btn.setPreferredSize(new Dimension(20,20));
+        btn.setMinimumSize(new Dimension(25,20));
+        btn.setMaximumSize(new Dimension(25,20));
+        btn.setPreferredSize(new Dimension(25,20));
         btn.setText("...");
         return btn;
     }
