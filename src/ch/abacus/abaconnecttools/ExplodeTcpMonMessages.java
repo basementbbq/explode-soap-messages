@@ -837,7 +837,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
             outputDirectory = tcpMonLogFilename.substring(0,lastSlashPos);
         }
 
-
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
         explodeTcpMonFile(tcpMonLogFilename);
         outputSoapMessages(outputDirectory);
 
@@ -852,6 +852,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
             }
             helpMessage += "\n\n";
         }
+        setCursor(Cursor.getDefaultCursor());
 
         setInfoText(helpMessage);
     }

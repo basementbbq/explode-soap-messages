@@ -44,6 +44,8 @@ public class XmlSoapAcReformatter extends SimpleXmlSaxParser {
     public void startDocument() {
         super.startDocument();
         mFormattedXml.setLength(0);
+        mLastStartElementName = "";
+        mElementNames.clear();
     }
 
     public boolean isRemoveNamespacePrefixes() {
