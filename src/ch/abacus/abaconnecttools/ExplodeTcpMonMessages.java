@@ -372,6 +372,9 @@ public class ExplodeTcpMonMessages  extends JFrame {
             }
         }
 
+        String application = "UNKNOWN";
+        String interfaceId = "";
+        String interfaceVersion = "";
         if ( requestCounter != responseCounter ) {
             addMessage("WARNING : Sorting of Request and Response Messages cannot be performed with uneven request and response counts !");
         }
@@ -384,6 +387,17 @@ public class ExplodeTcpMonMessages  extends JFrame {
             orderIndex++;
 
             String soapEnvelope = soapEnvelopeInfo.getSoapEnvelopeXml();
+
+            // Only need the SaveInsertUpdate state if the XML data will be reformatted
+            boolean isSaveInsertOrUpdateRequest = reformatXml && (soapEnvelope.contains("SaveRequest>") || soapEnvelope.contains("InsertRequest>") || soapEnvelope.contains("UpdateRequest>"));
+            if ( createAbaConnectImportFile && isSaveInsertOrUpdateRequest ) {
+                String[] interfaceValues = extractAbaConnectInterfaceFromNamespaces(soapEnvelope);
+                if ( interfaceValues != null && interfaceValues.length == 3 ) {
+                    interfaceVersion = interfaceValues[0];
+                    application = interfaceValues[1];
+                    interfaceId = interfaceValues[2];
+                }
+            }
             String soapHeader = soapEnvelopeInfo.getSoapHeader();
 
             String bodyName = soapEnvelopeInfo.getSoapBodyName();
@@ -427,7 +441,19 @@ public class ExplodeTcpMonMessages  extends JFrame {
                     }
 
                     outputFileStream.write(soapEnvelope.getBytes("UTF-8"));
-                    if ( createAbaConnectImportFile && (soapEnvelope.contains("SaveRequest>") || soapEnvelope.contains("InsertRequest>") || soapEnvelope.contains("UpdateRequest>")) ) {
+                    if ( createAbaConnectImportFile && isSaveInsertOrUpdateRequest ) {
+                        sbAbaConnectImportFile.append(singleIndent);
+                        sbAbaConnectImportFile.append(singleIndent);
+                        sbAbaConnectImportFile.append("<!-- ");
+                        sbAbaConnectImportFile.append(" App : ");
+                        sbAbaConnectImportFile.append(application);
+                        sbAbaConnectImportFile.append(" Version : ");
+                        sbAbaConnectImportFile.append(interfaceVersion);
+                        sbAbaConnectImportFile.append(" InterfaceId : ");
+                        sbAbaConnectImportFile.append(interfaceId);
+                        sbAbaConnectImportFile.append(" -->");
+                        sbAbaConnectImportFile.append(m_LineFeed);
+
                         writeToAbaConnectImportFile(singleIndent, sbAbaConnectImportFile, soapEnvelope);
                     }
 
@@ -465,16 +491,15 @@ public class ExplodeTcpMonMessages  extends JFrame {
                 try {
                     BufferedOutputStream outputFileStream = new BufferedOutputStream(new FileOutputStream(outputFilename));
 
-                    String application = "UKNOWN";
                     String acStartHeader = "<?xml version='1.0' encoding='UTF-8'?>" + m_LineFeed +
                             "<AbaConnectContainer>" + m_LineFeed +
                             "  <TaskCount>1</TaskCount>" + m_LineFeed +
                             "  <Task>" + m_LineFeed +
                             "    <Parameter>" + m_LineFeed +
                             "      <Application>" + application + "</Application>" + m_LineFeed +
-                            "      <Id></Id>" + m_LineFeed +
+                            "      <Id>" + interfaceId + "</Id>" + m_LineFeed +
                             "      <MapId>AbaDefault</MapId>" + m_LineFeed +
-                            "      <Version>2010.00</Version>" + m_LineFeed +
+                            "      <Version>" + interfaceVersion + "</Version>" + m_LineFeed +
                             "    </Parameter>" + m_LineFeed;
                     outputFileStream.write(acStartHeader.getBytes("UTF-8"));
 
@@ -499,6 +524,79 @@ public class ExplodeTcpMonMessages  extends JFrame {
             }
 
         }
+    }
+
+    /**
+     * Attempts to extract the interface Version, Application and InterfaceID from the SOAP message namespaces
+     *
+     * @param soapEnvelope the soap message with full interface namespaces
+     * @return returns a String[] array with { version, application, interfaceID } - the values may be empty
+     */
+    private String[] extractAbaConnectInterfaceFromNamespaces(String soapEnvelope) {
+        String version = "20xx.00";
+        String application = "UKNOWN";
+        String interfaceID = "";
+        if ( soapEnvelope == null || "".equals(soapEnvelope) ) return new String[] {version,application,interfaceID};
+        String requestStartTag = "";
+        if ( soapEnvelope.contains("SaveRequest>") ) {
+            requestStartTag = "SaveRequest";
+        } else if ( soapEnvelope.contains("InsertRequest>")  ) {
+            requestStartTag = "InsertRequest";
+        } else if ( soapEnvelope.contains("UpdateRequest>")  ) {
+            requestStartTag = "UpdateRequest";
+        }
+        if ( !"".equals(requestStartTag) ) {
+
+            String startTag = "<" + requestStartTag + ">";
+            int startValuePos = soapEnvelope.indexOf(startTag);
+            if (startValuePos < 0) {
+                startTag = "<" + requestStartTag + " ";
+                startValuePos = soapEnvelope.indexOf(startTag);
+            }
+            if (startValuePos < 0) {
+                startTag = ":" + requestStartTag + " ";
+                startValuePos = soapEnvelope.indexOf(startTag);
+            }
+            if (startValuePos >= 0) {
+                int iEndStartTagPos = soapEnvelope.indexOf(">", startValuePos);
+
+                if (iEndStartTagPos > startValuePos) {
+                    String startNameSpaces = soapEnvelope.substring(startValuePos, iEndStartTagPos);
+
+                    String abacusNamespacePrefix = "www.abacus.ch/abaconnect/";
+                    String[] values = startNameSpaces.split(" ");
+                    for (String value : values) {
+                        int ipos = value.indexOf(abacusNamespacePrefix);
+                        if (ipos > 0) {
+                            String suffix = value.substring(ipos + abacusNamespacePrefix.length());
+                            if (suffix.endsWith("\"") || suffix.endsWith("'")) {
+                                suffix = suffix.substring(0, suffix.length() - 1);
+                            }
+                            if (!suffix.endsWith("AbaConnectTypes")) {
+                                String[] interfaceValues = suffix.split("/");
+                                if (interfaceValues.length == 3) {
+                                    version = interfaceValues[0];
+                                    application = interfaceValues[1].toUpperCase();
+                                    if ( interfaceID == null || "".equals(interfaceID) ) {
+                                        interfaceID = interfaceValues[2];
+                                    } else if ( interfaceValues[2].endsWith("Types") || interfaceID.endsWith("Types") ) {
+                                        // Special conditions to separate names with "Types" suffix : e.g. HierarchyEmployee and HierarchyEmployeeTypes
+                                        if (!interfaceValues[2].equals(interfaceID + "Types")) {
+                                            interfaceID = interfaceValues[2];  // Adopt the name without the Types suffix
+                                        } else if (interfaceID.endsWith("Types") && interfaceID.startsWith(interfaceValues[2])) {
+                                            interfaceID = interfaceValues[2];  // Adopt the name without the Types suffix
+                                        }
+                                    } else {
+                                        interfaceID = interfaceValues[2];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return new String[] {version,application,interfaceID};
     }
 
     private boolean writeToAbaConnectImportFile(String singleIndent, StringBuilder sbAbaConnectImportFile, String soapEnvelope) {
