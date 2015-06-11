@@ -958,7 +958,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
 
         while ( currentPos >= 0 ) {
             String startTag = "<" + xmlTagName + ">";
-            String endTag = "</" + xmlTagName;
+            String endTag = "</" + xmlTagName + ">";
 
             String rootStartTag = "";
             String rootEndTag = "";
@@ -1006,7 +1006,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
                     int startBracket = text.lastIndexOf("<", startValuePos );
                     if ( startBracket >= 0 && startBracket < startValuePos ) {
                         String nsName = text.substring(startBracket+1,startValuePos);
-                        endTag = "</" + nsName + ":" + xmlTagName;
+                        endTag = "</" + nsName + ":" + xmlTagName + ">";
                         startValuePos = text.indexOf(">", startValuePos);
                         if ( startValuePos >= 0 ) {
                             startValuePos = startValuePos + 1;
