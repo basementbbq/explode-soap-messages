@@ -1042,7 +1042,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
      * @return returns a version string e.g. "14.05"
      */
     public static String getCurrentProgramVersionInfo() {
-        String versionText = "V14.06";
+        String versionText = "V15.06";
         String versionFilename = "version.txt";
         URL versionUrl = ExplodeTcpMonMessages.class.getResource(versionFilename);
         InputStream versionInputStream = null;
