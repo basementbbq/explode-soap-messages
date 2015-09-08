@@ -1,4 +1,4 @@
-<project name="ac_explode_soap_messages_app" basedir="." default="main">
+<project name="explode_soap_messages_app" basedir="." default="main">
 
     <!-- Java Source files location - normally src subdirectory -->
     <property name="src.dir"     value="src"/>
@@ -59,6 +59,7 @@
              <path location="${targetJarFile}"/>
           </classpath>
         </java>
+        <delete dir="${build.dir}"/>
     </target>
 
     <target name="clean-build" depends="clean,jar"/>

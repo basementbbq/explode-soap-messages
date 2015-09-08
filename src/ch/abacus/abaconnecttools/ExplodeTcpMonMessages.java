@@ -51,7 +51,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
     public StringBuilder m_sbMessages = new StringBuilder();
     public ArrayList<SoapEnvelopeInfo> m_SoapEnvelopeList = new ArrayList<SoapEnvelopeInfo>();
 
-    ArrayList<String> mXmlProblemFileNameMessages = new ArrayList<String>();
+    private ArrayList<String> mXmlProblemFileNameMessages = new ArrayList<String>();
 
     class SoapEnvelopeInfo implements Comparable {
         final String SOAP_RESPONSE_MESSAGE = "RESPONSE";
@@ -86,6 +86,21 @@ public class ExplodeTcpMonMessages  extends JFrame {
 
         public void setSoapHeader(String soapHeader) {
             mSoapHeader = soapHeader;
+        }
+
+        public String getTimeFromSoapHeader() {
+            String headerTime = "";
+            if ( mSoapHeader != null ) {
+                int ipos = mSoapHeader.indexOf("Date:");
+                if ( ipos >= 0 ) {
+                    headerTime = mSoapHeader.substring(ipos);
+                    ipos = headerTime.indexOf("\n");
+                    if ( ipos > 0 ) {
+                        headerTime = headerTime.substring(0,ipos).trim();
+                    }
+                }
+            }
+            return headerTime;
         }
 
         public String getSoapBodyName() {
@@ -333,6 +348,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
             return;
         }
         StringBuilder sbAbaConnectImportFile = new StringBuilder();
+        ArrayList<String> requestTimingStrings = new ArrayList<String>();
 
         boolean outputFiles = (outputDirectory != null && !"".equals(outputDirectory) );
         XmlSoapAcReformatter xmlFormatter = new XmlSoapAcReformatter();
@@ -406,6 +422,13 @@ public class ExplodeTcpMonMessages  extends JFrame {
 //            System.out.println(soapEnvelope);
 //            System.out.println("------------------------------");
 
+            if ( "SaveRequest".equalsIgnoreCase(bodyName) || "UpdateRequest".equalsIgnoreCase(bodyName) || "InsertRequest".equalsIgnoreCase(bodyName) || "FindRequest".equalsIgnoreCase(bodyName) || "DeleteRequest".equalsIgnoreCase(bodyName) ) {
+                requestTimingStrings.clear();
+            }
+            String soapHeaderTime = soapEnvelopeInfo.getTimeFromSoapHeader();
+            if ( !"".equals(soapHeaderTime) ) {
+                requestTimingStrings.add(soapHeaderTime);
+            }
             if ( outputFiles ) {
                 outputFilename = outputDirectory + File.separator + m_FilenamePrefix + String.format("%05d",orderIndex) + "_" + bodyName + ".xml";
 //                System.out.println("  ORDER [" + String.format("%8d",soapEnvelopeInfo.getOrderIndex()) + "]   Filename [" +  outputFilename + "]------------------------------");
@@ -469,6 +492,34 @@ public class ExplodeTcpMonMessages  extends JFrame {
                         outputFileStream.write(m_LineFeed.getBytes("UTF-8"));
                     }
 
+                    if ( outputSoapHeaders ) {
+                        if ( requestTimingStrings.size() > 0 ) {
+                            outputFileStream.write(m_LineFeed.getBytes("UTF-8"));
+                            outputFileStream.write("<!--  Response Timing Information ".getBytes("UTF-8"));
+                            outputFileStream.write(m_LineFeed.getBytes("UTF-8"));
+                            int timeSeconds = -1;
+                            int startTimeSeconds = -1;
+                            int lastTimeSeconds = -1;
+                            for (String requestTime : requestTimingStrings) {
+                                timeSeconds = getSecondsFromTimeString(requestTime);
+                                if ( startTimeSeconds < 0 ) {
+                                    startTimeSeconds = timeSeconds;
+                                }
+                                int diffSeconds = (startTimeSeconds > 0 ? (timeSeconds - startTimeSeconds) : -1);
+                                outputFileStream.write(getValueAsXmlCompatible(requestTime).getBytes("UTF-8"));
+                                if ( diffSeconds >= 0 ) {
+                                    outputFileStream.write("  Diff(".getBytes("UTF-8"));
+                                    outputFileStream.write(String.valueOf(diffSeconds).getBytes("UTF-8"));
+                                    outputFileStream.write(")".getBytes("UTF-8"));
+                                }
+                                outputFileStream.write(m_LineFeed.getBytes("UTF-8"));
+                                lastTimeSeconds = timeSeconds;
+                            }
+                            outputFileStream.write("  -->".getBytes("UTF-8"));
+                            outputFileStream.write(m_LineFeed.getBytes("UTF-8"));
+                        }
+                    }
+
                     outputFileStream.close();
 
                 } catch (FileNotFoundException e) {
@@ -524,6 +575,39 @@ public class ExplodeTcpMonMessages  extends JFrame {
             }
 
         }
+    }
+
+    /**
+     * Converts the Date-Time String expected in an AbaCOnnect SOAP Response to seconds in the day starting from midnight
+     * The Date string normally looks like this "Date: Fri, 28 Aug 2015 13:36:54 GMT"
+     * @param text the Date string from the SOAP response message
+     * @return seconds in the day starting from midnight, or -1 if it cannot be parse
+     */
+    private int getSecondsFromTimeString(String text) {
+        int timeInSeconds = -1;
+        if ( text != null && !"".equals(text) ) {
+            int ipos = text.indexOf("Date:");
+            String txtDate = (ipos >= 0 ? text.substring(ipos+5).trim() : text.trim());
+            ipos = text.lastIndexOf(":");
+            if ( ipos > 0 ) {
+                int endPos = ipos + 3;
+                ipos = text.lastIndexOf(":",ipos-1);
+                if ( ipos > 0 ) {
+                    int startPos = ipos - 2;
+                    if ( startPos >= 0 && endPos > startPos ) {
+                        text = text.substring(startPos, endPos);
+                        String[] values = text.split(":");
+                        if ( values.length > 2 ) {
+                            int hours = Integer.valueOf(values[0]);
+                            int minutes = Integer.valueOf(values[1]);
+                            int seconds = Integer.valueOf(values[2]);
+                            timeInSeconds = (hours * 3600) + (minutes * 60) + seconds;
+                        }
+                    }
+                }
+            }
+        }
+        return timeInSeconds;
     }
 
     /**
@@ -882,12 +966,21 @@ public class ExplodeTcpMonMessages  extends JFrame {
         return sbText.toString();
     }
 
+    private String getFileNamePrefix() {
+        String fileNamePrefix = "SM_";  // Default
+        if ( m_txfFilenamePrefix != null ) {
+            fileNamePrefix = m_txfFilenamePrefix.getText();
+            if ( fileNamePrefix == null || "".equals(fileNamePrefix) ) {
+                fileNamePrefix = "SM_";
+                m_txfFilenamePrefix.setText(fileNamePrefix);
+            }
+        }
+        return fileNamePrefix;
+    }
+
     private void action_DeleteXmlFiles() {
         String tcpMonLogFileDirectory = m_txfTcpMonFileName.getText();
-        if ( m_FilenamePrefix == null || "".equals(m_FilenamePrefix) ) {
-            m_FilenamePrefix = "SM_";
-            m_txfFilenamePrefix.setText(m_FilenamePrefix);
-        }
+        m_FilenamePrefix = getFileNamePrefix();
         int ipos = tcpMonLogFileDirectory.lastIndexOf(File.separator);
         if ( ipos > 0 ) {
             tcpMonLogFileDirectory = tcpMonLogFileDirectory.substring(0,ipos);
@@ -923,11 +1016,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
 
     private void action_ExplodeMessages() {
         String tcpMonLogFilename = m_txfTcpMonFileName.getText();
-        m_FilenamePrefix = m_txfFilenamePrefix.getText();
-        if ( m_FilenamePrefix == null || "".equals(m_FilenamePrefix) ) {
-            m_FilenamePrefix = "SM_";
-            m_txfFilenamePrefix.setText(m_FilenamePrefix);
-        }
+        m_FilenamePrefix = getFileNamePrefix();
 
         String outputDirectory = "";
         int lastSlashPos = tcpMonLogFilename.lastIndexOf(File.separator);
