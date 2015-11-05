@@ -987,15 +987,30 @@ public class ExplodeTcpMonMessages  extends JFrame {
         }
         int deletedFileCount = 0;
         String messageText = "";
-        int retVal = JOptionPane.showConfirmDialog(this,"Do you want to delete all existing XML files in : \n   " + tcpMonLogFileDirectory + "\nwith the prefix \"" + m_FilenamePrefix + "\" ?\n\nFiles matching pattern :  " + m_FilenamePrefix + "*.xml", "Delete Files", JOptionPane.OK_CANCEL_OPTION );
+
+        class PrefixXmlFilenameFilter implements FilenameFilter {
+            private String filePrefixFilter;
+            public PrefixXmlFilenameFilter(String prefix) {
+                filePrefixFilter = prefix == null ? "" : prefix.toLowerCase();
+                    }
+
+            @Override
+            public boolean accept(File dir, String name) {
+                String filename = name.toLowerCase();
+                return (dir.exists() && filename.startsWith(filePrefixFilter) && filename.endsWith(".xml") );
+                }
+            }
+        File[] fileList =  new File(tcpMonLogFileDirectory).listFiles(new PrefixXmlFilenameFilter(m_FilenamePrefix));
+        if ( fileList.length == 0 ) {
+            JOptionPane.showMessageDialog(this,"There are no XML files in the folder with the specified prefix : " + m_FilenamePrefix + "*.xml\nFolder :\n   " + tcpMonLogFileDirectory, "No Matching Files", JOptionPane.OK_OPTION );
+            return;
+        }
+        int retVal = JOptionPane.showConfirmDialog(this,"Do you want to delete all " + fileList.length + " existing XML files in : \n   " + tcpMonLogFileDirectory + "\nwith the prefix \"" + m_FilenamePrefix + "\" ?\n\nFiles matching pattern :  " + m_FilenamePrefix + "*.xml", "Delete Files", JOptionPane.OK_CANCEL_OPTION );
         if ( retVal ==  JOptionPane.OK_OPTION ) {
 
-            String lowerCasePrefix = m_FilenamePrefix.toLowerCase();
-            File[] fileList =  new File(tcpMonLogFileDirectory).listFiles();
             for ( File ff : fileList ) {
                 String filename = ff.getName().toLowerCase();
                 System.out.println("File  : " + ff.getName() );
-                if ( ff.exists() && filename.startsWith(lowerCasePrefix) && filename.endsWith(".xml") ) {
                     if ( ff.delete() ) {
                         deletedFileCount++;
 //                        System.out.println("Deleted File  : " + ff.getName() );
@@ -1003,7 +1018,6 @@ public class ExplodeTcpMonMessages  extends JFrame {
                         System.out.println("File could not be delete  : " + ff.getName() );
                         messageText += ("\nFile " + ff.getName() + "could not be delete !" );
                     }
-                }
             }
         }
         if ( deletedFileCount > 0 ) {
