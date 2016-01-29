@@ -1243,7 +1243,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
      * @return returns a version string e.g. "14.05"
      */
     public static String getCurrentProgramVersionInfo() {
-        String versionText = "V15.06";
+        String versionText = "V15.08";
         String versionFilename = "version.txt";
         URL versionUrl = ExplodeTcpMonMessages.class.getResource(versionFilename);
         InputStream versionInputStream = null;
@@ -1255,7 +1255,7 @@ public class ExplodeTcpMonMessages  extends JFrame {
                 byte data[] = new byte[bufferSize];
                 while ((count = versionInputStream.read(data, 0, bufferSize)) != -1) {
                     String value = new String(data,0,count);
-                    if ( value == null || "".equals(value) ) {
+                    if ( value != null && !"".equals(value) ) {
                         int iPos = value.indexOf("\n");
                         if ( iPos > 0 ) {
                             value = value.substring(0, iPos).trim();
