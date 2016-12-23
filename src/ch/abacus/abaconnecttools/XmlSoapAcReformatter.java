@@ -32,6 +32,7 @@ public class XmlSoapAcReformatter extends SimpleXmlSaxParser {
 
     // Specific flags for AbaConnect Data Handling
     private String mAbaConnectImportMode = "";
+    private String mDeterminedRequestImportMode = "";
     private boolean mInSaveInsertUpdateRequest = false;
     private boolean mInSaveInsertUpdateDateElement = false;
     private boolean mInExtendedFieldElement = false;
@@ -140,6 +141,7 @@ public class XmlSoapAcReformatter extends SimpleXmlSaxParser {
         if ( isAbaConnectImportModeActive() ) {
             if (isElementNameSaveInsertUpdateRequest(name) ) {
                 mInSaveInsertUpdateRequest = false;
+                mDeterminedRequestImportMode = "";
             }
         }
     }
@@ -162,7 +164,26 @@ public class XmlSoapAcReformatter extends SimpleXmlSaxParser {
                     if ( !isDataElementName(mLastStartElementName) ) {
                         // Do not output mode attribute for the Data element
                         sbFormattedXml.append(" mode=\"");
-                        sbFormattedXml.append(mAbaConnectImportMode);
+                        
+                        if ( atts != null ) {
+                            int attLength = atts.getLength();
+                            if (attLength > 0) {
+                                for (int index = 0; index < attLength; index++) {
+                                    String attribVal = atts.getValue(index);
+                                    String attribName = atts.getLocalName(index);
+                                    if ( "mode".equals(attribName) ) {
+                                        // Explicit mode attirbute Overrides the mode defined by Request Parameter
+                                        mDeterminedRequestImportMode = attribVal;
+                                    }
+                                }
+                            }
+                        }
+
+                        if ( !"".equals(mDeterminedRequestImportMode) ) {
+                            sbFormattedXml.append(mDeterminedRequestImportMode);
+                        } else {
+                            sbFormattedXml.append(mAbaConnectImportMode);
+                        }
                         sbFormattedXml.append("\"");
                     }
                 }
@@ -256,7 +277,7 @@ public class XmlSoapAcReformatter extends SimpleXmlSaxParser {
 
     private boolean isElementNameSaveInsertUpdateRequest( String elementName) {
         if ( elementName == null ) return false;
-        if ( !elementName.endsWith("SaveRequest") && !elementName.endsWith("InsertRequest") && !elementName.endsWith("InsertRequest") ) return false;
+        if ( !elementName.endsWith("SaveRequest") && !elementName.endsWith("InsertRequest") && !elementName.endsWith("UpdateRequest") ) return false;
         String elementTagName = elementName;
         int colonPos = elementTagName.indexOf(":");
         if ( colonPos >= 0 ) {
@@ -264,6 +285,14 @@ public class XmlSoapAcReformatter extends SimpleXmlSaxParser {
             elementTagName = elementTagName.substring(colonPos+1);
         }
         if ( "SaveRequest".equals(elementTagName) || "InsertRequest".equals(elementTagName) || "UpdateRequest".equals(elementTagName) ) {
+            mDeterminedRequestImportMode = "";
+            if ( "UpdateRequest".equals(elementTagName) ) {
+                mDeterminedRequestImportMode = "UPDATE";
+            } else if ( "InsertRequest".equals(elementTagName) ) {
+                mDeterminedRequestImportMode = "INSERT";
+            } else if ( "SaveRequest".equals(elementTagName) ) {
+                mDeterminedRequestImportMode = "SAVE";
+            }
             return true;
         }
 
